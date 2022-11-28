@@ -12,7 +12,7 @@ from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 
 
-API_TOKEN = 'token'
+API_TOKEN = '5700264182:AAEy5-9NtWTkJSDcIvHa1A7oWLCfHMz36ao'
 
 
 logging.basicConfig(level=logging.INFO)
@@ -61,27 +61,17 @@ def write_json(new_data, filename='js_storage.json'):
         json.dump(file_data, file, indent = 4)
 
 
+# @dp.message_handler(content_types = ['location', 'audio', 'video', 'document', 'game', 'poll', 'dice', 'contact'], state=None)
+# async def failed_process(message: types.Message, state: FSMContext):
+#     return await message.reply("Извини, но сначала нужно запустить меня" + '\nВыбери в меню "запустить" или напиши "/start"')
+
+
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
-    await CloudState.photo.set()
-    await message.reply(f"Доброго времени суток, {message.from_user.full_name}, загрузите, пожалуйста, фотографию.")
-
-
-@dp.message_handler(content_types=types.ContentType.PHOTO, state=CloudState.photo)
-async def download_photo(message: types.Message, state: FSMContext):
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.add(types.KeyboardButton('Отправить геолокацию', request_location = True))
-    if message.media_group_id == None:
-        await message.photo[-1].download(destination_dir="storage/")
-        await message.answer("Вау, красивые фотки, где вы их сделали?", reply_markup=keyboard)
-    else:
-        return await message.answer("Извини, но я работаю только с одной фотографией." + "\nПришли мне только ОДНУ фотография, пожалуйста!")
-    await CloudState.next()
-
-
-@dp.message_handler(content_types = ['location', 'audio', 'text', 'video', 'document', 'game', 'poll', 'dice', 'contact'], state=CloudState.photo)
-async def failed_process2(message: types.Message, state: FSMContext):
-    return await message.reply("Извини, но это не фотография"+ "\nПопробуй всё-таки загрузить фотографию")
+    await message.reply(f"Доброго времени суток, {message.from_user.full_name}, загрузите, пожалуйста, локацию.", reply_markup=keyboard)
+    await CloudState.location.set()
 
 
 @dp.message_handler(content_types = ['photo', 'audio', 'text', 'video', 'document', 'game', 'poll', 'dice', 'contact'], state=CloudState.location)
@@ -89,14 +79,33 @@ async def failed_process1(message: types.Message, state: FSMContext):
     return await message.reply("Извини, но это не локация" + "\nПопробуй всё-таки загрузить локацию")
 
 
-@dp.message_handler(content_types = ['location', 'audio', 'text', 'video', 'document', 'game', 'poll', 'dice', 'contact'], state=None)
-async def failed_process(message: types.Message, state: FSMContext):
-    return await message.reply("Извини, но сначала нужно запустить меня" + 'Выбери в меню "запустить" или напиши "/start"')
-
 @dp.message_handler(content_types=['location'], state=CloudState.location)
 async def location_graber(message: types.Message, state: FSMContext):
-    lat = message.location.latitude
-    lon = message.location.longitude
+    # lat = message.location.latitude
+    # lon = message.location.longitude
+    loc = [message.location['latitude'], message.location['longitude']] 
+    async with state.proxy() as data:
+        data['location'] = loc
+    await message.reply("Теперь загрузите, пожалуйста, фотографию.", reply=False, reply_markup=types.ReplyKeyboardRemove())
+    await CloudState.photo.set()
+
+
+@dp.message_handler(content_types = ['location', 'audio', 'text', 'video', 'document', 'game', 'poll', 'dice', 'contact'], state=CloudState.photo)
+async def failed_process2(message: types.Message, state: FSMContext):
+    return await message.reply("Извини, но это не фотография"+ "\nПопробуй всё-таки загрузить фотографию")
+
+
+@dp.message_handler(content_types=types.ContentType.PHOTO, state=CloudState.photo)
+async def download_photo(message: types.Message, state: FSMContext):
+    # keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    # keyboard.add(types.KeyboardButton('Отправить геолокацию', request_location = True))
+    if message.media_group_id == None:
+        await message.photo[-1].download(destination_dir=f"storage/")
+    else:
+        return await message.answer("Извини, но я работаю только с одной фотографией." + "\nПришли мне только ОДНУ фотография, пожалуйста!")
+    async with state.proxy() as data:
+        lat = data['location'][0]
+        lon = data['location'][1]
     list_of_files = glob.glob('storage/photos/*')
     latest_file = max(list_of_files, key=os.path.getmtime)
     loc_collection = {
@@ -108,9 +117,11 @@ async def location_graber(message: types.Message, state: FSMContext):
         "date": f"{message.date}" 
     }
     write_json(loc_collection)
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    keyboard.add(types.KeyboardButton('Отправить геолокацию', request_location = True))
     await message.answer("О, спасибо, я запомню!)" +
-                         "\nЯ бы с удовольствием посмотрел еще фотографии!)" + '\nЕсли хочешь пришли ещё фоток, я обязательно их гляну.', reply=False, reply_markup=types.ReplyKeyboardRemove())
-    await CloudState.photo.set()
+                         "\nЯ бы с удовольствием посмотрел еще фотографии!)" + '\nДля этого пришли мне место, где ты фотографировал облака.', reply_markup=keyboard)
+    await CloudState.location.set()
 
 
 
