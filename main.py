@@ -12,7 +12,7 @@ from aiogram.dispatcher.handler import CancelHandler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 
 
-API_TOKEN = '5700264182:AAEy5-9NtWTkJSDcIvHa1A7oWLCfHMz36ao'
+API_TOKEN = ''
 
 
 logging.basicConfig(level=logging.INFO)
